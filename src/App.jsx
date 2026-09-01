@@ -228,10 +228,10 @@ export default function App() {
               </motion.div>
               <motion.div
                 whileHover={{ y: -3, boxShadow: '5px 5px 0px #FFE600' }}
-                className="glass border-2 border-yellow-400/25 p-3 transition-all"
+                className="glass border-2 border-yellow-400/25 p-3 transition-all min-w-0"
               >
                 <p className="font-mono text-xs text-white/30 uppercase mb-1">Mode</p>
-                <p className="font-display font-black text-xl text-yellow-400 leading-tight">
+                <p className="font-display font-black text-lg sm:text-xl text-yellow-400 leading-tight truncate" title={activeMode.charAt(0).toUpperCase() + activeMode.slice(1)}>
                   {activeMode.charAt(0).toUpperCase() + activeMode.slice(1)}
                 </p>
               </motion.div>
