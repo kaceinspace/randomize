@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion'
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
+import html2canvas from 'html2canvas'
 import { useStore } from '../store'
 import { playPop, playChampion, playSpinStart } from '../utils/sounds'
 import { fireConfetti, fireChampionConfetti } from '../utils/confetti'
@@ -95,7 +96,7 @@ function buildBracket(names, tournamentName) {
     const isGhost = a === null && b === null
     const isBye = !isGhost && (a === null || b === null)
     const winner = isBye ? (a ?? b) : null
-    r0.push({ a, b, winner, isBye, isGhost })
+    r0.push({ a, b, winner, isBye, isGhost, scoreA: null, scoreB: null })
   }
 
   // Pre-build all future rounds, propagating ghost status structurally
@@ -109,7 +110,7 @@ function buildBracket(names, tournamentName) {
       const f1 = prev[ni * 2]
       const f2 = prev[ni * 2 + 1]
       const isGhost = (f1 ? f1.isGhost : true) && (f2 ? f2.isGhost : true)
-      round.push({ a: null, b: null, winner: null, isBye: false, isGhost })
+      round.push({ a: null, b: null, winner: null, isBye: false, isGhost, scoreA: null, scoreB: null })
     }
     rounds.push(round)
   }
@@ -180,7 +181,6 @@ function propagateWinners(tournament, roundIndex) {
 function ConnectorSVG({ fromYs, toYs, totalH }) {
   const MIDX = CONN_W / 2
   const COLOR = 'rgba(255,255,255,0.18)'
-  const WINNER_COLOR = 'rgba(255,230,0,0.35)'
 
   return (
     <svg width={CONN_W} height={totalH} className="flex-shrink-0" style={{ overflow: 'visible' }}>
@@ -209,7 +209,7 @@ function ConnectorSVG({ fromYs, toYs, totalH }) {
 }
 
 // ─── Matchup Card ────────────────────────────────────────────────────────────
-function MatchupCard({ matchup, r, i, numRounds, isActive, canInteract, onPick }) {
+function MatchupCard({ matchup, r, i, numRounds, isActive, canInteract, onPick, onScoreChange }) {
   const y = getMatchupY(r, i, numRounds)
   const hasWinner = matchup.winner !== null
   // Use the explicit structural flag — NOT a/b nullness — so an undecided
@@ -262,7 +262,11 @@ function MatchupCard({ matchup, r, i, numRounds, isActive, canInteract, onPick }
     )
   }
 
-  // Real matchup
+  // Real matchup — score entry drives the winner automatically once both
+  // scores are filled in and differ. Clicking a name still works too, as
+  // a quick manual override for whoever doesn't want to type scores.
+  const isTie = matchup.scoreA !== null && matchup.scoreB !== null && matchup.scoreA === matchup.scoreB
+
   return (
     <div
       className={`absolute border flex flex-col divide-y overflow-hidden transition-all ${hasWinner
@@ -273,32 +277,52 @@ function MatchupCard({ matchup, r, i, numRounds, isActive, canInteract, onPick }
         }`}
       style={{ top: y, width: CARD_W, height: CARD_H }}
     >
-      {[matchup.a, matchup.b].map((player, j) => (
-        <button
-          key={j}
-          onClick={() => canInteract && player && !hasWinner && onPick(r, i, player)}
-          disabled={!canInteract || hasWinner}
-          className={`flex-1 px-2 flex items-center gap-1.5 text-left transition-all group min-w-0 ${matchup.winner === player
-            ? 'bg-yellow-400/15'
-            : canInteract && !hasWinner
-              ? 'hover:bg-blue-500/20 cursor-pointer'
-              : ''
-            }`}
-        >
-          {matchup.winner === player
-            ? <span className="text-yellow-400 text-[11px] leading-none flex-shrink-0">★</span>
-            : isActive && !hasWinner
-              ? <span className="w-2.5 h-2.5 rounded-full border border-white/20 flex-shrink-0 group-hover:border-blue-400 transition-colors" />
-              : <span className="w-2.5 flex-shrink-0" />
-          }
-          <span className={`font-bold text-[11px] truncate transition-all ${hasWinner && matchup.winner !== player
-            ? 'text-white/25 line-through decoration-white/20'
-            : 'text-white'
-            }`}>
-            {player}
-          </span>
-        </button>
-      ))}
+      {[matchup.a, matchup.b].map((player, j) => {
+        const scoreKey = j === 0 ? 'scoreA' : 'scoreB'
+        const scoreVal = matchup[scoreKey]
+        const showScoreInput = canInteract && !hasWinner
+
+        return (
+          <div
+            key={j}
+            className={`flex-1 flex items-center gap-1 pl-2 pr-1 min-w-0 transition-all group ${matchup.winner === player ? 'bg-yellow-400/15' : ''
+              }`}
+          >
+            <button
+              onClick={() => canInteract && player && !hasWinner && onPick(r, i, player)}
+              disabled={!canInteract || hasWinner}
+              className={`flex items-center gap-1.5 flex-1 min-w-0 text-left ${canInteract && !hasWinner ? 'hover:bg-blue-500/20 cursor-pointer' : ''
+                }`}
+            >
+              {matchup.winner === player
+                ? <span className="text-yellow-400 text-[11px] leading-none flex-shrink-0">★</span>
+                : isActive && !hasWinner
+                  ? <span className="w-2.5 h-2.5 rounded-full border border-white/20 flex-shrink-0 group-hover:border-blue-400 transition-colors" />
+                  : <span className="w-2.5 flex-shrink-0" />
+              }
+              <span className={`font-bold text-[11px] truncate transition-all ${hasWinner && matchup.winner !== player
+                ? 'text-white/25 line-through decoration-white/20'
+                : 'text-white'
+                }`}>
+                {player}
+              </span>
+            </button>
+
+            {showScoreInput && (
+              <input
+                type="number"
+                inputMode="numeric"
+                value={scoreVal ?? ''}
+                onClick={e => e.stopPropagation()}
+                onChange={e => onScoreChange(r, i, scoreKey, e.target.value)}
+                className={`w-9 flex-shrink-0 bg-white/10 border text-white text-[10px] font-mono text-center py-0.5 outline-none transition-colors ${isTie ? 'border-red-400/60' : 'border-white/20 focus:border-blue-400'
+                  }`}
+                placeholder="0"
+              />
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -311,11 +335,31 @@ function roundLabel(r, totalRounds) {
   return `R${r + 1}`
 }
 
+// ─── Export helper ───────────────────────────────────────────────────────────
+async function exportNodeAsImage(node, filename) {
+  if (!node) return
+  try {
+    const canvas = await html2canvas(node, {
+      backgroundColor: '#0a0a0a',
+      scale: 2,
+      useCORS: true,
+    })
+    const link = document.createElement('a')
+    link.download = filename
+    link.href = canvas.toDataURL('image/png')
+    link.click()
+  } catch (err) {
+    console.error('Export gagal:', err)
+  }
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function TournamentMode({ names }) {
   const { tournament, setTournament } = useStore()
   const [isAnimating, setIsAnimating] = useState(false)
   const [draftName, setDraftName] = useState('Tournament 2024')
+  const bracketInnerRef = useRef(null)
+  const championRef = useRef(null)
 
   // ── Derived state ──
   const curRound = tournament?.currentRound ?? 0
@@ -359,6 +403,32 @@ export default function TournamentMode({ names }) {
     setTournament(updated)
   }, [tournament, isAnimating, setTournament])
 
+  // Update a matchup's score. Once both scores are in and they differ, the
+  // higher score automatically becomes the winner and propagates forward —
+  // same downstream logic as clicking a name (pickWinner), just triggered
+  // by score entry instead of a click.
+  const updateScore = useCallback((r, i, key, rawValue) => {
+    if (!tournament || isAnimating) return
+    const value = rawValue === '' ? null : Math.max(0, parseInt(rawValue, 10) || 0)
+
+    const newRounds = tournament.rounds.map((round, ri) =>
+      ri !== r ? round : round.map((m, mi) => mi !== i ? m : { ...m, [key]: value })
+    )
+    const m = newRounds[r][i]
+
+    if (m.scoreA !== null && m.scoreB !== null && m.scoreA !== m.scoreB && m.winner === null) {
+      const winner = m.scoreA > m.scoreB ? m.a : m.b
+      playPop()
+      fireConfetti()
+      const wonRounds = newRounds.map((round, ri) =>
+        ri !== r ? round : round.map((mm, mi) => mi !== i ? mm : { ...mm, winner })
+      )
+      setTournament(propagateWinners({ ...tournament, rounds: wonRounds }, r))
+    } else {
+      setTournament({ ...tournament, rounds: newRounds })
+    }
+  }, [tournament, isAnimating, setTournament])
+
   const randomizeRound = async () => {
     if (!tournament || isAnimating) return
     setIsAnimating(true)
@@ -396,56 +466,80 @@ export default function TournamentMode({ names }) {
     }
   }
 
+  const exportBracketImage = () => {
+    if (!tournament) return
+    exportNodeAsImage(bracketInnerRef.current, `${tournament.name.replace(/\s+/g, '_')}_bracket.png`)
+  }
+
+  const exportChampionImage = () => {
+    if (!tournament) return
+    exportNodeAsImage(championRef.current, `${tournament.name.replace(/\s+/g, '_')}_juara.png`)
+  }
+
   // ─────────────────────────────────────────────────────────────────────────
   // CHAMPION SCREEN
   // ─────────────────────────────────────────────────────────────────────────
   if (tournament?.champion) {
     return (
       <div className="flex flex-col items-center gap-4 py-3">
-        <motion.div
-          initial={{ scale: 0, rotate: -20 }}
-          animate={{ scale: 1, rotate: 0 }}
-          transition={{ type: 'spring', stiffness: 220, damping: 10 }}
-          className="text-5xl"
-        >
-          🏆
-        </motion.div>
-
-        <div className="text-center">
-          <p className="font-mono text-[9px] text-yellow-400/50 uppercase tracking-widest mb-1">
-            {tournament.name}
-          </p>
-          <motion.p
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="font-display font-black text-3xl text-yellow-400"
+        <div ref={championRef} className="flex flex-col items-center gap-4 py-3 px-2 w-full">
+          <motion.div
+            initial={{ scale: 0, rotate: -20 }}
+            animate={{ scale: 1, rotate: 0 }}
+            transition={{ type: 'spring', stiffness: 220, damping: 10 }}
+            className="text-5xl"
           >
-            {tournament.champion}
-          </motion.p>
-          <p className="font-mono text-xs text-white/30 mt-1">
-            🎉 Selamat, Juara!
-          </p>
-        </div>
+            🏆
+          </motion.div>
 
-        {/* Bracket summary */}
-        <div className="w-full border border-white/10 p-3 text-xs font-mono space-y-0.5">
-          <p className="text-white/30 uppercase tracking-widest text-[9px] mb-1">Ringkasan Bracket</p>
-          {tournament.rounds.map((round, ri) => (
-            <p key={ri} className="text-white/40">
-              <span className="text-white/20">{roundLabel(ri, tournament.numRounds)}:</span>{' '}
-              {round.filter(m => m.winner && !m.isBye).map(m => `${m.a} vs ${m.b} → ${m.winner}`).join(' | ')}
+          <div className="text-center">
+            <p className="font-mono text-[9px] text-yellow-400/50 uppercase tracking-widest mb-1">
+              {tournament.name}
             </p>
-          ))}
+            <motion.p
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="font-display font-black text-3xl text-yellow-400"
+            >
+              {tournament.champion}
+            </motion.p>
+            <p className="font-mono text-xs text-white/30 mt-1">
+              🎉 Selamat, Juara!
+            </p>
+          </div>
+
+          {/* Bracket summary */}
+          <div className="w-full border border-white/10 p-3 text-xs font-mono space-y-0.5">
+            <p className="text-white/30 uppercase tracking-widest text-[9px] mb-1">Ringkasan Bracket</p>
+            {tournament.rounds.map((round, ri) => (
+              <p key={ri} className="text-white/40">
+                <span className="text-white/20">{roundLabel(ri, tournament.numRounds)}:</span>{' '}
+                {round.filter(m => m.winner && !m.isBye).map(m => {
+                  const score = m.scoreA !== null && m.scoreB !== null ? ` (${m.scoreA}-${m.scoreB})` : ''
+                  return `${m.a} vs ${m.b}${score} → ${m.winner}`
+                }).join(' | ')}
+              </p>
+            ))}
+          </div>
         </div>
 
-        <motion.button
-          onClick={resetTournament}
-          whileTap={{ scale: 0.97 }}
-          className="w-full py-3 font-mono font-bold text-sm border-2 border-yellow-400/60 text-yellow-400 hover:bg-yellow-400/10 transition-all uppercase"
-        >
-          🔄 Tournament Baru
-        </motion.button>
+        <div className="w-full flex gap-2">
+          <motion.button
+            onClick={exportChampionImage}
+            whileTap={{ scale: 0.97 }}
+            className="flex-1 py-3 font-mono font-bold text-sm border-2 border-white/20 text-white/70 hover:bg-white/5 transition-all uppercase"
+          >
+            📸 Export Gambar
+          </motion.button>
+          <motion.button
+            onClick={resetTournament}
+            whileTap={{ scale: 0.97 }}
+            className="flex-1 py-3 font-mono font-bold text-sm border-2 border-yellow-400/60 text-yellow-400 hover:bg-yellow-400/10 transition-all uppercase"
+          >
+            🔄 Tournament Baru
+          </motion.button>
+        </div>
       </div>
     )
   }
@@ -490,7 +584,8 @@ export default function TournamentMode({ names }) {
                 ⚡ {byeCount} peserta dapat BYE (lolos otomatis ke ronde berikutnya)
               </p>
             )}
-            <p className="text-white/30">• Klik nama untuk pilih pemenang manual</p>
+            <p className="text-white/30">• Isi skor tiap pemain untuk menentukan pemenang otomatis</p>
+            <p className="text-white/30">• Atau klik nama untuk pilih pemenang manual</p>
             <p className="text-white/30">• Atau klik "Randomize" untuk acak semua</p>
           </div>
         )}
@@ -530,17 +625,26 @@ export default function TournamentMode({ names }) {
               : `${roundLabel(curRound, numRounds)} · ${pendingCount} matchup tersisa`}
           </p>
         </div>
-        <button
-          onClick={resetTournament}
-          className="font-mono text-[10px] text-white/20 hover:text-red-400 transition-colors flex-shrink-0 mt-0.5"
-        >
-          ✕ reset
-        </button>
+        <div className="flex items-center gap-2 flex-shrink-0 mt-0.5">
+          <button
+            onClick={exportBracketImage}
+            className="font-mono text-[10px] text-white/30 hover:text-blue-400 transition-colors"
+          >
+            📸 export
+          </button>
+          <button
+            onClick={resetTournament}
+            className="font-mono text-[10px] text-white/20 hover:text-red-400 transition-colors"
+          >
+            ✕ reset
+          </button>
+        </div>
       </div>
 
       {/* ─── Bracket ─── */}
       <div className="overflow-x-auto pb-1" style={{ WebkitOverflowScrolling: 'touch' }}>
         <div
+          ref={bracketInnerRef}
           style={{
             display: 'flex',
             alignItems: 'flex-start',
@@ -578,6 +682,7 @@ export default function TournamentMode({ names }) {
                     isActive={r === curRound}
                     canInteract={r === curRound && !isAnimating}
                     onPick={pickWinner}
+                    onScoreChange={updateScore}
                   />
                 ))}
               </div>

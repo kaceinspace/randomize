@@ -32,6 +32,11 @@ export default function App() {
     many: 'Many Random', pair: 'Pair Mode', team: 'Team Builder', tournament: 'Turnamen',
   }
 
+  // Tournament brackets need a lot of horizontal room, so the side panels
+  // shrink specifically in tournament mode to give the center column more
+  // space — other modes keep the original wider side panels.
+  const isTournament = activeMode === 'tournament'
+
   return (
     <div className="min-h-screen grid-bg noise-overlay relative overflow-hidden">
       {/* Ambient blobs */}
@@ -55,7 +60,7 @@ export default function App() {
       ))}
 
       {/* Main Container */}
-      <div className="relative z-10 max-w-[1400px] mx-auto p-4 md:p-6 min-h-screen flex flex-col">
+      <div className="relative z-10 max-w-[1600px] mx-auto p-4 md:p-6 min-h-screen flex flex-col">
 
         {/* ===== HEADER ===== */}
         <motion.header
@@ -98,7 +103,15 @@ export default function App() {
         </motion.header>
 
         {/* ===== BENTO GRID MAIN LAYOUT ===== */}
-        <div className="flex-1 grid grid-cols-1 lg:grid-cols-[300px_1fr_320px] gap-4 min-h-0">
+        {/* Side panels shrink in tournament mode (see isTournament above) so
+            the center column — where the bracket lives — gets more width
+            instead of being squeezed by two fixed-width panels. */}
+        <div
+          className={`flex-1 grid grid-cols-1 gap-4 min-h-0 ${isTournament
+              ? 'lg:grid-cols-[220px_1fr_220px]'
+              : 'lg:grid-cols-[300px_1fr_320px]'
+            }`}
+        >
 
           {/* ===== LEFT PANEL — Name Input ===== */}
           <motion.div
@@ -122,7 +135,7 @@ export default function App() {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2, type: 'spring', stiffness: 150 }}
-            className="flex flex-col gap-4"
+            className="flex flex-col gap-4 min-w-0"
           >
             {/* Config panel - appears for certain modes */}
             <AnimatePresence>
