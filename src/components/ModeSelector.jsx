@@ -8,6 +8,7 @@ const MODES = [
   { id: 'many', label: 'Many', emoji: '🌀', desc: 'Pilih N nama acak', color: 'blue' },
   { id: 'pair', label: 'Pair', emoji: '🔗', desc: 'Pasangkan 1-lawan-1', color: 'yellow' },
   { id: 'team', label: 'Team', emoji: '👥', desc: 'Bagi ke N tim', color: 'blue' },
+  { id: 'tournament', label: 'Turnamen', emoji: '🏆', desc: 'Bracket eliminasi', color: 'yellow' },
 ]
 
 export default function ModeSelector({ activeMode, onSelect }) {

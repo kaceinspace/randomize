@@ -1,6 +1,8 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { useState, useEffect, useRef } from 'react'
 import { useStore } from '../store'
+import { playTick, playSpinStart, playWin } from '../utils/sounds'
+import { fireConfetti } from '../utils/confetti'
 
 // Fisher-Yates shuffle
 function shuffle(arr) {
@@ -97,7 +99,7 @@ function SpinnerWheel({ names, rotationDeg }) {
     <div className="relative w-64 h-64 mx-auto my-4 flex items-center justify-center">
       {/* Pointer */}
       <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[14px] border-l-transparent border-r-[14px] border-r-transparent border-t-[24px] border-t-red-500 z-10 filter drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]" />
-      
+
       {/* Wheel */}
       <motion.div
         animate={{ rotate: rotationDeg }}
@@ -134,8 +136,8 @@ export default function ResultDisplay({ mode, names, manyCount, pairs, teamCount
   const spinRef = useRef(null)
 
   // Reset result when mode or names change (only if not spinning)
-  useEffect(() => { 
-    if (!isSpinning) setResult(null) 
+  useEffect(() => {
+    if (!isSpinning) setResult(null)
   }, [mode, names.length])
 
   const deleteResult = () => {
@@ -143,7 +145,7 @@ export default function ResultDisplay({ mode, names, manyCount, pairs, teamCount
     let toRemove = []
     if (result.type === 'single') toRemove = [result.value]
     else if (result.type === 'list') toRemove = result.values
-    
+
     if (toRemove.length > 0) {
       setNames(names.filter(n => !toRemove.includes(n)))
       setResult(null)
@@ -154,6 +156,7 @@ export default function ResultDisplay({ mode, names, manyCount, pairs, teamCount
     if (names.length === 0) return
     setIsSpinning(true)
     setResult(null)
+    playSpinStart()
 
     const SPIN_DURATION = mode === 'spinner' ? 3000 : (mode === 'single' ? 1200 : 900)
 
@@ -174,6 +177,8 @@ export default function ResultDisplay({ mode, names, manyCount, pairs, teamCount
 
     if (mode === 'spinner') {
       setResult({ type: 'single', value: winningName })
+      playWin()
+      fireConfetti()
       setSpinCount(c => c + 1)
       return
     }
@@ -182,11 +187,17 @@ export default function ResultDisplay({ mode, names, manyCount, pairs, teamCount
 
     if (mode === 'single') {
       setResult({ type: 'single', value: shuffled[0] })
+      playWin()
+      fireConfetti()
     } else if (mode === 'double') {
       setResult({ type: 'list', values: shuffled.slice(0, Math.min(2, shuffled.length)) })
+      playWin()
+      fireConfetti()
     } else if (mode === 'many') {
       const count = Math.min(manyCount, shuffled.length)
       setResult({ type: 'list', values: shuffled.slice(0, count) })
+      playWin()
+      fireConfetti()
     } else if (mode === 'pair') {
       // pairs is { groupA: [...], groupB: [...] }
       if (!pairs || !pairs.groupA?.length || !pairs.groupB?.length) return
@@ -194,11 +205,15 @@ export default function ResultDisplay({ mode, names, manyCount, pairs, teamCount
       const sB = shuffle(pairs.groupB)
       const pairList = sA.map((a, i) => [a, sB[i] ?? '—'])
       setResult({ type: 'pairs', values: pairList })
+      playWin()
+      fireConfetti()
     } else if (mode === 'team') {
       const count = Math.min(teamCount, shuffled.length)
       const teams = Array.from({ length: count }, () => [])
       shuffled.forEach((name, i) => teams[i % count].push(name))
       setResult({ type: 'teams', values: teams })
+      playWin()
+      fireConfetti()
     }
 
     setSpinCount(c => c + 1)
@@ -216,7 +231,7 @@ export default function ResultDisplay({ mode, names, manyCount, pairs, teamCount
     if (result.type === 'single') text = result.value
     else if (result.type === 'list') text = result.values.join('\n')
     else if (result.type === 'pairs') text = result.values.map(([a, b]) => `${a} ↔ ${b}`).join('\n')
-    else if (result.type === 'teams') text = result.values.map((t, i) => `Tim ${i+1}: ${t.join(', ')}`).join('\n')
+    else if (result.type === 'teams') text = result.values.map((t, i) => `Tim ${i + 1}: ${t.join(', ')}`).join('\n')
     navigator.clipboard.writeText(text)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
@@ -477,13 +492,13 @@ export default function ResultDisplay({ mode, names, manyCount, pairs, teamCount
             >
               ×
             </button>
-            
+
             <div className="flex-1 w-full flex flex-col items-center justify-center max-w-3xl">
               {/* Giant Spinner */}
               <div className="transform scale-[1.3] md:scale-[1.8] mb-16 md:mb-24">
                 <SpinnerWheel names={names} rotationDeg={rotationDeg} />
               </div>
-              
+
               <div className="h-32 flex items-center justify-center w-full mb-4">
                 {result && !isSpinning ? (
                   <motion.div
@@ -497,32 +512,32 @@ export default function ResultDisplay({ mode, names, manyCount, pairs, teamCount
               </div>
 
               <div className="w-full max-w-md flex flex-col gap-4 relative z-20">
-                 {/* Re-use randomize button */}
-                 <motion.button
-                    onClick={doRandom}
-                    disabled={!canRandom() || isSpinning}
-                    whileHover={canRandom() && !isSpinning ? { scale: 1.05 } : {}}
-                    whileTap={canRandom() && !isSpinning ? { scale: 0.95 } : {}}
-                    className={`
+                {/* Re-use randomize button */}
+                <motion.button
+                  onClick={doRandom}
+                  disabled={!canRandom() || isSpinning}
+                  whileHover={canRandom() && !isSpinning ? { scale: 1.05 } : {}}
+                  whileTap={canRandom() && !isSpinning ? { scale: 0.95 } : {}}
+                  className={`
                       w-full py-5 font-display font-black text-2xl uppercase tracking-widest
                       border-4 transition-all
                       ${canRandom() && !isSpinning
-                        ? 'bg-brute-blue border-white text-white shadow-[8px_8px_0px_#FFE600]'
-                        : 'bg-white/5 border-white/20 text-white/30 cursor-not-allowed'
-                      }
+                      ? 'bg-brute-blue border-white text-white shadow-[8px_8px_0px_#FFE600]'
+                      : 'bg-white/5 border-white/20 text-white/30 cursor-not-allowed'
+                    }
                     `}
-                  >
-                    {isSpinning ? 'SPINNING...' : '🎲 SPIN LAGI!'}
-                  </motion.button>
+                >
+                  {isSpinning ? 'SPINNING...' : '🎲 RANDOMIZE!'}
+                </motion.button>
 
-                  {result && !isSpinning && (
-                    <button
-                      onClick={deleteResult}
-                      className="w-full py-4 font-mono font-bold text-red-400 border-2 border-red-500/50 hover:bg-red-500/20 hover:border-red-400 transition-all uppercase"
-                    >
-                      🗑️ Hapus "{result.value}" dari daftar
-                    </button>
-                  )}
+                {result && !isSpinning && (
+                  <button
+                    onClick={deleteResult}
+                    className="w-full py-4 font-mono font-bold text-red-400 border-2 border-red-500/50 hover:bg-red-500/20 hover:border-red-400 transition-all uppercase"
+                  >
+                    🗑️ Hapus "{result.value}" dari daftar
+                  </button>
+                )}
               </div>
             </div>
           </motion.div>

@@ -6,6 +6,7 @@ import ResultDisplay from './components/ResultDisplay'
 import PairMode from './components/PairMode'
 import ManyRandomConfig from './components/ManyRandomConfig'
 import TeamBuilderConfig from './components/TeamBuilderConfig'
+import TournamentMode from './components/TournamentMode'
 
 const FLOATING_PARTICLES = Array.from({ length: 12 }, (_, i) => ({
   id: i,
@@ -28,7 +29,7 @@ export default function App() {
 
   const modeName = {
     single: 'Single Random', spinner: 'Spinner Wheel', double: 'Double Random',
-    many: 'Many Random', pair: 'Pair Mode', team: 'Team Builder',
+    many: 'Many Random', pair: 'Pair Mode', team: 'Team Builder', tournament: 'Turnamen',
   }
 
   return (
@@ -125,7 +126,7 @@ export default function App() {
           >
             {/* Config panel - appears for certain modes */}
             <AnimatePresence>
-              {(activeMode === 'many' || activeMode === 'team' || activeMode === 'pair') && (
+              {(activeMode === 'many' || activeMode === 'team' || activeMode === 'pair' || activeMode === 'tournament') && (
                 <motion.div
                   key="config-panel"
                   initial={{ opacity: 0, height: 0, y: -10 }}
@@ -139,7 +140,8 @@ export default function App() {
                     <span className="font-mono text-xs text-yellow-400 uppercase tracking-widest font-bold">
                       {activeMode === 'many' ? 'Konfigurasi Many' :
                         activeMode === 'team' ? 'Konfigurasi Tim' :
-                          'Setup Pasangan'}
+                          activeMode === 'pair' ? 'Setup Pasangan' :
+                            'Bracket Turnamen'}
                     </span>
                   </div>
                   {activeMode === 'many' && (
@@ -150,6 +152,9 @@ export default function App() {
                   )}
                   {activeMode === 'pair' && (
                     <PairMode names={names} pairs={pairs} onPairsChange={setPairs} />
+                  )}
+                  {activeMode === 'tournament' && (
+                    <TournamentMode names={names} />
                   )}
                 </motion.div>
               )}
