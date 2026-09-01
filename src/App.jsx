@@ -18,16 +18,16 @@ const FLOATING_PARTICLES = Array.from({ length: 12 }, (_, i) => ({
 }))
 
 export default function App() {
-  const { 
+  const {
     names, setNames,
     activeMode, setActiveMode,
     manyCount, setManyCount,
     teamCount, setTeamCount,
-    pairs, setPairs 
+    pairs, setPairs
   } = useStore()
 
   const modeName = {
-    single: 'Single Random', double: 'Double Random',
+    single: 'Single Random', spinner: 'Spinner Wheel', double: 'Double Random',
     many: 'Many Random', pair: 'Pair Mode', team: 'Team Builder',
   }
 
@@ -75,9 +75,9 @@ export default function App() {
               <div>
                 <h1 className="font-display font-black text-2xl md:text-3xl tracking-tight">
                   <span className="text-white">Rando</span>
-                  <span className="text-yellow-400">Mix</span>
+                  <span className="text-yellow-400">Mizen</span>
                 </h1>
-                <p className="font-mono text-xs text-white/40 uppercase tracking-widest">Name Randomizer</p>
+                <p className="font-mono text-xs text-white/40 uppercase tracking-widest">Name Generator</p>
               </div>
             </div>
             <div className="hidden md:flex items-center gap-3">
@@ -138,8 +138,8 @@ export default function App() {
                     <div className="w-3 h-3 bg-yellow-400 border border-yellow-300" />
                     <span className="font-mono text-xs text-yellow-400 uppercase tracking-widest font-bold">
                       {activeMode === 'many' ? 'Konfigurasi Many' :
-                       activeMode === 'team' ? 'Konfigurasi Tim' :
-                       'Setup Pasangan'}
+                        activeMode === 'team' ? 'Konfigurasi Tim' :
+                          'Setup Pasangan'}
                     </span>
                   </div>
                   {activeMode === 'many' && (
@@ -226,6 +226,7 @@ export default function App() {
                 {[
                   { icon: '📋', text: 'Paste banyak nama sekaligus — pisahkan dengan enter atau koma' },
                   { icon: '🎯', text: 'Single: pilih 1 nama dengan animasi slot machine' },
+                  { icon: '🎡', text: 'Spinner: putar roda keberuntungan buat milih 1 nama' },
                   { icon: '🎲', text: 'Double: pilih 2 nama sekaligus secara acak' },
                   { icon: '🌀', text: 'Many: atur sendiri berapa nama yang dipilih' },
                   { icon: '🔗', text: 'Pair: pasangkan kelompok A & B satu-per-satu' },
@@ -248,7 +249,7 @@ export default function App() {
             {/* Footer branding */}
             <div className="text-center">
               <p className="font-mono text-xs text-white/15">
-                Built with ❤️ — RandoMix v1.0
+                Built with ❤️ — RandoMizen v1.0
               </p>
             </div>
           </motion.div>

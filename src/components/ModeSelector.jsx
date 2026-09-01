@@ -3,6 +3,7 @@ import { useState, useCallback } from 'react'
 
 const MODES = [
   { id: 'single', label: 'Single', emoji: '🎯', desc: 'Pilih 1 nama acak', color: 'blue' },
+  { id: 'spinner', label: 'Spinner', emoji: '🎡', desc: 'Putar roda keberuntungan', color: 'yellow' },
   { id: 'double', label: 'Double', emoji: '🎲', desc: 'Pilih 2 nama acak', color: 'yellow' },
   { id: 'many', label: 'Many', emoji: '🌀', desc: 'Pilih N nama acak', color: 'blue' },
   { id: 'pair', label: 'Pair', emoji: '🔗', desc: 'Pasangkan 1-lawan-1', color: 'yellow' },
